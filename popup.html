@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiq Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{width:300px;min-height:340px;background:#1a1814;font-family:'Syne',sans-serif;color:#f0ead6;overflow:hidden;}
+    .header{padding:14px 18px 12px;border-bottom:1px solid #2e2b24;display:flex;align-items:center;justify-content:space-between;}
+    .logo{display:flex;align-items:center;gap:8px;}
+    .logo-icon{width:28px;height:28px;background:#f5c842;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;transform:rotate(-3deg);box-shadow:2px 2px 0 #c49a1a;}
+    .logo h1{font-size:18px;font-weight:800;letter-spacing:-.5px;color:#f0ead6;}
+    .logo h1 span{color:#f5c842;}
+    .note-count{font-size:11px;color:#7a7060;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+    /* Search bar */
+    .search-row{padding:10px 18px 8px;border-bottom:1px solid #2e2b24;}
+    .search-wrap{position:relative;display:flex;align-items:center;}
+    .search-icon{position:absolute;left:10px;font-size:13px;color:#5a5248;pointer-events:none;}
+    #searchInput{width:100%;background:#252219;border:1px solid #3a3630;border-radius:8px;padding:7px 10px 7px 30px;font-family:'Syne',sans-serif;font-size:12px;color:#f0ead6;outline:none;transition:border-color .15s;}
+    #searchInput::placeholder{color:#4a4438;}
+    #searchInput:focus{border-color:#f5c842;}
+    .search-mode-label{font-size:9px;color:#5a5248;margin-top:5px;letter-spacing:.5px;}
+    /* Color picker */
+    .color-picker-row{padding:12px 18px 8px;display:flex;align-items:center;gap:6px;}
+    .color-label{font-size:10px;color:#7a7060;text-transform:uppercase;letter-spacing:1px;margin-right:4px;font-weight:600;}
+    .color-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;}
+    .color-dot:hover{transform:scale(1.2);}
+    .color-dot.active{border-color:#f0ead6;transform:scale(1.15);}
+    /* Add button */
+    .add-btn{margin:4px 18px 12px;width:calc(100% - 36px);padding:11px;background:#f5c842;color:#1a1814;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 3px 0 #c49a1a;transition:transform .1s,box-shadow .1s;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .add-btn:hover{transform:translateY(-1px);box-shadow:0 4px 0 #c49a1a;}
+    .add-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #c49a1a;}
+    .shortcut-hint{text-align:center;font-size:10px;color:#3a3630;margin:-8px 0 10px;letter-spacing:.3px;}
+    .divider{height:1px;background:#2e2b24;margin:0 18px;}
+    /* Notes list */
+    .notes-list{max-height:200px;overflow-y:auto;padding:8px 10px;}
+    .notes-list::-webkit-scrollbar{width:4px;}
+    .notes-list::-webkit-scrollbar-track{background:transparent;}
+    .notes-list::-webkit-scrollbar-thumb{background:#3a3630;border-radius:4px;}
+    .note-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;margin-bottom:3px;cursor:pointer;transition:background .15s;}
+    .note-item:hover{background:#252219;}
+    .note-item-left{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
+    .note-item-dot{width:10px;height:10px;border-radius:3px;}
+    .note-item-icons{display:flex;gap:2px;font-size:9px;}
+    .note-item-body{flex:1;min-width:0;}
+    .note-item-text{font-family:'Caveat',cursive;font-size:14px;color:#b0a890;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .note-item-url{font-size:9px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;letter-spacing:.3px;}
+    .note-item-meta{font-size:9px;color:#3a3630;margin-top:1px;}
+    .note-item-del{width:18px;height:18px;border-radius:4px;background:transparent;border:none;color:#4a4438;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:color .15s,background .15s;line-height:1;}
+    .note-item-del:hover{color:#e05050;background:#2e1a1a;}
+    .empty-state{padding:20px;text-align:center;color:#4a4438;}
+    .empty-state .icon{font-size:28px;margin-bottom:8px;}
+    .empty-state p{font-size:12px;line-height:1.6;}
+    /* Footer */
+    .footer{padding:8px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #2e2b24;}
+    .clear-btn{font-size:11px;color:#5a5248;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;letter-spacing:.5px;transition:color .15s;}
+    .clear-btn:hover{color:#e05050;}
+    .toggle-btn{font-size:11px;color:#7a7060;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;letter-spacing:.5px;transition:color .15s;}
+    .toggle-btn:hover{color:#f5c842;}
+    .storage-row{padding:6px 18px 12px;display:flex;gap:6px;border-top:1px solid #2e2b24;}
+    .storage-btn{flex:1;font-size:10px;color:#5a5248;background:#252219;border:1px solid #3a3630;border-radius:6px;padding:6px 8px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;letter-spacing:.5px;transition:all .15s;}
+    .storage-btn:hover{color:#f0ead6;background:#3a3630;border-color:#5a5248;}
+    /* Search results mode */
+    .search-page-group{margin-bottom:8px;}
+    .search-page-header{font-size:9px;color:#5a5248;letter-spacing:.5px;padding:3px 8px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">🏷️</div>
+      <h1>Quiq<span>Notes</span></h1>
+    </div>
+    <div class="note-count" id="noteCount">0 NOTES</div>
+  </div>
+
+  <!-- Feature #5: Global Search -->
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search all notes…">
+    </div>
+    <div class="search-mode-label" id="searchModeLabel"></div>
+  </div>
+
+  <div class="color-picker-row">
+    <span class="color-label">Color</span>
+    <div class="color-dot active" data-color="#fef08a" style="background:#fef08a;" title="Yellow"></div>
+    <div class="color-dot" data-color="#86efac" style="background:#86efac;" title="Green"></div>
+    <div class="color-dot" data-color="#93c5fd" style="background:#93c5fd;" title="Blue"></div>
+    <div class="color-dot" data-color="#f9a8d4" style="background:#f9a8d4;" title="Pink"></div>
+    <div class="color-dot" data-color="#fdba74" style="background:#fdba74;" title="Orange"></div>
+    <div class="color-dot" data-color="#d8b4fe" style="background:#d8b4fe;" title="Lavender"></div>
+    <div class="color-dot" data-color="#ffffff" style="background:#ffffff;border-color:#3a3630;" title="White"></div>
+  </div>
+
+  <button class="add-btn" id="addNoteBtn"><span>＋</span> Drop a New Note</button>
+  <div class="shortcut-hint">or press <strong>Alt+N</strong> anywhere</div>
+
+  <div class="divider"></div>
+
+  <div class="notes-list" id="notesList">
+    <div class="empty-state" id="emptyState">
+      <div class="icon">🗒️</div>
+      <p>No notes yet.<br>Drop one on this page!</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="clear-btn" id="clearBtn">Clear Page</button>
+    <button class="toggle-btn" id="toggleBtn">Hide Notes</button>
+  </div>
+
+  <div class="storage-row">
+    <button class="storage-btn" id="exportBtn" title="Save all as JSON">Export JSON</button>
+    <button class="storage-btn" id="exportTxtBtn" title="Save page notes as TXT">Export TXT</button>
+    <button class="storage-btn" id="importBtn" title="Load from file">Import</button>
+    <input type="file" id="importFile" accept=".json,.txt" style="display:none">
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
