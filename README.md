@@ -59,6 +59,14 @@ Yellow · Green · Blue · Pink · Orange · Lavender · White
 ### ⌨️ Keyboard Shortcut
 Press **`Alt + N`** anywhere on any page to instantly drop a new note — no need to open the popup!
 
+### ✨ Automatic Auto-Paste
+No buttons needed! Simply copy any text on a webpage (`Ctrl+C` or `Cmd+C`) and it automatically flows into the last note you interacted with.
+- In **text mode** — inserts at your cursor if focused, otherwise appends it
+- In **checklist mode** — splits multi-line copies into individual checklist items
+- The target note will flash a **green glow** to confirm the paste
+- Prevents loops (won't paste if you are copying text *from* a note itself)
+
+
 ### 🌙 Dark Mode (per note)
 Toggle each note individually between light and dark themes using the **🌙** button in the note header.
 

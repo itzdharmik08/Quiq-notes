@@ -26,6 +26,7 @@
   let notes = [], hidden = false;
   const noteEls = new Map();
   let activeTextarea = null;
+  let lastNote = null; // last note interacted with — auto-paste target
 
   browserAPI.storage.local.get([KEY, HIDDEN_KEY], (r) => {
     notes = r[KEY] || []; hidden = r[HIDDEN_KEY] || false;
@@ -39,6 +40,8 @@
     :host{position:fixed!important;z-index:2147483600!important;display:block!important;min-width:160px;min-height:120px;border-radius:4px 14px 14px 14px;box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.5);overflow:hidden;font-family:'Caveat',cursive;cursor:default;user-select:none;animation:pop-in .25s cubic-bezier(.34,1.56,.64,1) both;}
     @keyframes pop-in{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
     :host(.dragging){box-shadow:0 18px 48px rgba(0,0,0,.3);transform:rotate(2deg) scale(1.03);}
+    :host(.paste-flash){animation:paste-flash .6s ease both!important;}
+    @keyframes paste-flash{0%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 3px rgba(40,200,100,.7);}60%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 6px rgba(40,200,100,.3);}100%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 0 rgba(40,200,100,0);}}
     .wrapper{width:100%;height:100%;display:flex;flex-direction:column;position:relative;}
     .wrapper::before{content:'';position:absolute;top:-5px;left:18px;width:12px;height:12px;background:radial-gradient(circle at 40% 35%,#ff6b6b,#c0392b);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:2;pointer-events:none;}
     .header{padding:5px 6px 4px;display:flex;align-items:center;justify-content:space-between;cursor:grab;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.06);}
@@ -225,16 +228,16 @@
         </div>
       </div>`;
 
-    const wrapper  = shadow.querySelector('.wrapper');
-    const header   = shadow.querySelector('.header');
-    const textarea = shadow.querySelector('textarea');
-    const delBtn   = shadow.querySelector('.del-btn');
-    const themeBtn = shadow.querySelector('.theme-btn');
-    const modeBtn  = shadow.querySelector('.mode-btn');
-    const lockBtn  = shadow.querySelector('.lock-btn');
-    const pinBtn   = shadow.querySelector('.pin-btn');
-    const resizeH  = shadow.querySelector('.resize-handle');
-    const tagInput = shadow.querySelector('.tag-input');
+    const wrapper   = shadow.querySelector('.wrapper');
+    const header    = shadow.querySelector('.header');
+    const textarea  = shadow.querySelector('textarea');
+    const delBtn    = shadow.querySelector('.del-btn');
+    const themeBtn  = shadow.querySelector('.theme-btn');
+    const modeBtn   = shadow.querySelector('.mode-btn');
+    const lockBtn   = shadow.querySelector('.lock-btn');
+    const pinBtn    = shadow.querySelector('.pin-btn');
+    const resizeH   = shadow.querySelector('.resize-handle');
+    const tagInput  = shadow.querySelector('.tag-input');
 
     // Checklist
     if (isChecklist) buildChecklist(shadow, note, note.locked);
@@ -244,8 +247,8 @@
       textarea.addEventListener('input', () => { note.text = textarea.value; note.updatedAt = new Date().toISOString(); saveNotes(); });
       textarea.addEventListener('mousedown', e => e.stopPropagation());
       textarea.addEventListener('pointerdown', e => e.stopPropagation());
-      textarea.addEventListener('focus', () => { activeTextarea = textarea; });
-      textarea.addEventListener('blur',  () => { activeTextarea = null; });
+      textarea.addEventListener('focus', () => { activeTextarea = textarea; lastNote = note; });
+      textarea.addEventListener('blur',  () => { activeTextarea = null; /* lastNote kept intentionally */ });
       textarea.addEventListener('paste', async e => {
         e.preventDefault(); e.stopPropagation();
         let t = '';
@@ -313,9 +316,14 @@
     makeDraggable(host, header, note);
     makeResizable(host, resizeH, note);
 
+    // Also track lastNote on any click anywhere on the note
+    host.addEventListener('pointerdown', () => { lastNote = note; }, true);
+
     document.body.appendChild(host);
     noteEls.set(note.id, host);
-    if (!note.text && !note.items.length && textarea) setTimeout(() => textarea.focus(), 50);
+    if (!note.text && !note.items.length && textarea) {
+      setTimeout(() => { textarea.focus(); lastNote = note; }, 50);
+    }
   }
 
   function rebuildNote(note, host) {
@@ -374,16 +382,59 @@
     saveTimer = setTimeout(() => browserAPI.storage.local.set({[KEY]:notes}), 300);
   }
 
-  document.addEventListener('copy', e => {
-    if (!activeTextarea) return;
-    let t = e.clipboardData?.getData('text/plain') || window.getSelection()?.toString() || '';
-    if (!t) return;
+  // ── Auto-paste: any copy on the page → flows into the last active note ───
+  document.addEventListener('copy', () => {
+    if (!lastNote || lastNote.locked) return;
+
+    // Ensure we are not copying FROM the note itself
+    let copyingFromNote = false;
+    for (const host of noteEls.values()) {
+      if (host.shadowRoot && host.shadowRoot.activeElement) {
+        copyingFromNote = true;
+        break;
+      }
+    }
+    if (copyingFromNote) return;
+
+    // Get copied text from page selection
+    let copied = window.getSelection()?.toString();
+
+    // If selection is empty, check if user is copying from an input/textarea on the page
+    if (!copied && document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      try {
+        copied = document.activeElement.value.substring(document.activeElement.selectionStart, document.activeElement.selectionEnd);
+      } catch (e) {}
+    }
+
+    if (!copied || !copied.trim()) return;
+
+    // Small delay ensures smooth UX
     setTimeout(() => {
-      const s=activeTextarea.selectionStart, en=activeTextarea.selectionEnd;
-      activeTextarea.value = activeTextarea.value.slice(0,s)+t+activeTextarea.value.slice(en);
-      activeTextarea.setSelectionRange(s+t.length, s+t.length);
-      const note = notes.find(n => { const el=noteEls.get(n.id); return el&&el.shadowRoot&&el.shadowRoot.querySelector('textarea')===activeTextarea; });
-      if (note) { note.text=activeTextarea.value; note.updatedAt=new Date().toISOString(); saveNotes(); }
+      const hostEl = noteEls.get(lastNote.id);
+      if (!hostEl) return;
+
+      if (lastNote.mode === 'checklist') {
+        // Each line becomes a checklist item
+        const lines = copied.split('\n').map(l => l.trim()).filter(l => l);
+        lines.forEach(line => {
+          lastNote.items.push({ id: Date.now().toString() + Math.random(), text: line, checked: false });
+        });
+        lastNote.updatedAt = new Date().toISOString();
+        buildChecklist(hostEl.shadowRoot, lastNote, lastNote.locked);
+      } else {
+        const ta = hostEl.shadowRoot?.querySelector('textarea');
+        if (!ta) return;
+        // Append copied text
+        ta.value = ta.value ? ta.value + '\n' + copied : copied;
+        lastNote.text = ta.value;
+        lastNote.updatedAt = new Date().toISOString();
+      }
+
+      saveNotes();
+
+      // Green glow flash on the note to confirm auto-paste
+      hostEl.classList.add('paste-flash');
+      setTimeout(() => hostEl.classList.remove('paste-flash'), 650);
     }, 50);
   });
 
