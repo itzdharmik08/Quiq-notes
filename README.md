@@ -4,7 +4,7 @@
 
 **Drop sticky notes on any webpage — fast, colorful, and always there.**
 
-![Version](https://img.shields.io/badge/version-1.1.0-f5c842?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.2.0-f5c842?style=flat-square)
 ![Manifest](https://img.shields.io/badge/Manifest-V3-blue?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Firefox-orange?style=flat-square)
@@ -106,6 +106,19 @@ The popup list shows which domain each note belongs to, so you always know where
 ### 👁️ Hide / Show All Notes
 Toggle all notes on the current page visible or hidden with one click.
 
+### 🌍 Global Note
+Click the **🌍 Global Note** button in the popup to create a special note that:
+- **Collects copied text from ALL tabs/pages** automatically
+- **Shows timestamps and page hostnames** for each copied entry
+- **Persists across all websites** — open it on any page to see all your collected notes
+- Has a **🔄 refresh button** to sync from storage
+- Perfect for collecting research snippets, code snippets, or todo items from multiple sources
+
+**How it works:**
+1. Click **🌍 Open Global Note** to create/view your global note
+2. Copy any text on any webpage (`Ctrl+C`) — it automatically appends to your global note with a timestamp
+3. The global note appears on every page you visit
+
 ---
 
 ## 🖱️ How to Use
@@ -136,6 +149,13 @@ Click **📌** in the note header to cycle through screen corners. The note will
 1. Open the popup
 2. Type in the **Search all notes…** bar
 3. Results from all pages appear instantly with their page domain
+
+### Using Global Note
+1. Click **🌍 Open Global Note** in the popup (green button at the bottom)
+2. Your global note appears on the page — it stays the same color (green) on all pages
+3. Copy any text anywhere (`Ctrl+C`) and it automatically adds to your global note with timestamp
+4. Click the **🔄** button in the note header to sync latest changes from storage
+5. Click **✕** to close the global note (data is saved automatically)
 
 ---
 
@@ -172,6 +192,7 @@ quiq-notes/
 
 ## 🗺️ Roadmap
 
+- [x] Global note that collects from all tabs (added in v1.2.0)
 - [ ] Image / screenshot attachment inside notes
 - [ ] Cloud sync across devices
 - [ ] Context-menu shortcut (right-click → Add Note Here)

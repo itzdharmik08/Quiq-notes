@@ -100,19 +100,19 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     catch { return 'notes_global'; }
   }
   function darken(hex, amount = 20) {
-    const n = parseInt(hex.replace('#',''), 16);
-    return `rgb(${Math.max(0,(n>>16)-amount)},${Math.max(0,((n>>8)&0xFF)-amount)},${Math.max(0,(n&0xFF)-amount)})`;
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `rgb(${Math.max(0, (n >> 16) - amount)},${Math.max(0, ((n >> 8) & 0xFF) - amount)},${Math.max(0, (n & 0xFF) - amount)})`;
   }
   function timeAgo(iso) {
     if (!iso) return '';
     const d = Date.now() - new Date(iso).getTime();
-    const m = Math.floor(d/60000), h = Math.floor(d/3600000), dy = Math.floor(d/86400000);
+    const m = Math.floor(d / 60000), h = Math.floor(d / 3600000), dy = Math.floor(d / 86400000);
     if (m < 1) return 'just now';
     if (m < 60) return m + 'm ago';
     if (h < 24) return h + 'h ago';
     return dy + 'd ago';
   }
-  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   const KEY = getPageKey(), HIDDEN_KEY = 'hidden_' + KEY;
   let notes = [], hidden = false;
@@ -127,20 +127,20 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   });
 
   const PINS = [null, 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
-  const PIN_ICONS = {'top-left':'↖','top-right':'↗','bottom-left':'↙','bottom-right':'↘'};
+  const PIN_ICONS = { 'top-left': '↖', 'top-right': '↗', 'bottom-left': '↙', 'bottom-right': '↘' };
 
   function applyPin(host, note) {
     if (!note.pinned) {
       host.style.left = note.x + 'px';
-      host.style.top  = note.y + 'px';
+      host.style.top = note.y + 'px';
       host.style.right = '';
       host.style.bottom = '';
     } else {
       const p = note.pinned;
-      host.style.top    = p.includes('top')    ? '16px' : '';
+      host.style.top = p.includes('top') ? '16px' : '';
       host.style.bottom = p.includes('bottom') ? '16px' : '';
-      host.style.left   = p.includes('left')   ? '16px' : '';
-      host.style.right  = p.includes('right')  ? '16px' : '';
+      host.style.left = p.includes('left') ? '16px' : '';
+      host.style.right = p.includes('right') ? '16px' : '';
     }
   }
 
@@ -150,9 +150,9 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (note.items || []).forEach((item, i) => {
       const row = document.createElement('div');
       row.className = 'ci' + (item.checked ? ' done' : '');
-      row.innerHTML = `<input type="checkbox" ${item.checked?'checked':''} ${locked?'disabled':''}>
-        <input class="it" value="${esc(item.text)}" ${locked?'disabled':''} placeholder="Item…">
-        <button class="ri" ${locked?'disabled':''}>✕</button>`;
+      row.innerHTML = `<input type="checkbox" ${item.checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+        <input class="it" value="${esc(item.text)}" ${locked ? 'disabled' : ''} placeholder="Item…">
+        <button class="ri" ${locked ? 'disabled' : ''}>✕</button>`;
       row.querySelector('input[type=checkbox]').addEventListener('change', e => {
         item.checked = e.target.checked;
         row.classList.toggle('done', item.checked);
@@ -186,7 +186,7 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         saveNotes();
         setTimeout(() => {
           const inputs = shadow.querySelectorAll('.ni');
-          if (inputs.length) inputs[inputs.length-1].focus();
+          if (inputs.length) inputs[inputs.length - 1].focus();
         }, 20);
       });
       cl.appendChild(nr);
@@ -207,61 +207,61 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     const host = document.createElement('div');
     host.id = 'quiq-' + note.id;
-    host.style.cssText = `position:fixed!important;left:${note.x}px;top:${note.y}px;width:${note.width||200}px;height:${note.height||180}px;z-index:${note.zIndex||2147483600};`;
+    host.style.cssText = `position:fixed!important;left:${note.x}px;top:${note.y}px;width:${note.width || 200}px;height:${note.height || 180}px;z-index:${note.zIndex || 2147483600};`;
     applyPin(host, note);
 
     const shadow = host.attachShadow({ mode: 'open' });
     const isDark = note.theme === 'dark';
     const bgStyle = isDark
       ? `background:#1e1e22;--accent:${note.color};`
-      : `background:linear-gradient(145deg,${note.color},${darken(note.color,8)});`;
+      : `background:linear-gradient(145deg,${note.color},${darken(note.color, 8)});`;
 
-    const tagsHtml = (note.tags||[]).map(t => `<span class="tag-chip">${esc(t)}</span>`).join('');
+    const tagsHtml = (note.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join('');
     const pinIcon = note.pinned ? PIN_ICONS[note.pinned] : '📌';
     const isChecklist = note.mode === 'checklist';
 
     shadow.innerHTML = `<style>${CSS}</style>
-      <div class="wrapper${isDark?' dark':''}" style="${bgStyle}">
+      <div class="wrapper${isDark ? ' dark' : ''}" style="${bgStyle}">
         <div class="header">
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
           <div class="actions">
-            <button class="ab theme-btn${isDark?' on':''}" title="Toggle dark mode">🌙</button>
-            <button class="ab mode-btn${isChecklist?' on':''}" title="Checklist mode">☑</button>
-            <button class="ab lock-btn${note.locked?' on':''}" title="${note.locked?'Unlock':'Lock'} note">${note.locked?'🔒':'🔓'}</button>
-            <button class="ab pin-btn${note.pinned?' on':''}" title="Pin to corner">${note.pinned?PIN_ICONS[note.pinned]:'📌'}</button>
+            <button class="ab theme-btn${isDark ? ' on' : ''}" title="Toggle dark mode">🌙</button>
+            <button class="ab mode-btn${isChecklist ? ' on' : ''}" title="Checklist mode">☑</button>
+            <button class="ab lock-btn${note.locked ? ' on' : ''}" title="${note.locked ? 'Unlock' : 'Lock'} note">${note.locked ? '🔒' : '🔓'}</button>
+            <button class="ab pin-btn${note.pinned ? ' on' : ''}" title="Pin to corner">${note.pinned ? PIN_ICONS[note.pinned] : '📌'}</button>
             <button class="ab del-btn" title="Delete">✕</button>
           </div>
         </div>
         <div class="body">
           ${isChecklist
-            ? `<div class="checklist"></div>`
-            : `<textarea placeholder="Write something…" spellcheck="false"${note.locked?' disabled':''}>${esc(note.text||'')}</textarea>`
-          }
+        ? `<div class="checklist"></div>`
+        : `<textarea placeholder="Write something…" spellcheck="false"${note.locked ? ' disabled' : ''}>${esc(note.text || '')}</textarea>`
+      }
           <div class="tags-row">
             ${tagsHtml}
-            ${!note.locked?`<input class="tag-input" placeholder="#tag">`:'' }
+            ${!note.locked ? `<input class="tag-input" placeholder="#tag">` : ''}
           </div>
         </div>
         <div class="note-foot">
           <span class="timestamp">${timeAgo(note.createdAt)}</span>
           <div style="display:flex;align-items:center;gap:4px;">
-            ${note.locked?`<span class="locked-badge">🔒 locked</span>`:''}
-            ${note.pinned?`<span class="pin-badge">${PIN_ICONS[note.pinned]} pinned</span>`:''}
+            ${note.locked ? `<span class="locked-badge">🔒 locked</span>` : ''}
+            ${note.pinned ? `<span class="pin-badge">${PIN_ICONS[note.pinned]} pinned</span>` : ''}
             <div class="resize-handle"></div>
           </div>
         </div>
       </div>`;
 
-    const wrapper   = shadow.querySelector('.wrapper');
-    const header    = shadow.querySelector('.header');
-    const textarea  = shadow.querySelector('textarea');
-    const delBtn    = shadow.querySelector('.del-btn');
-    const themeBtn  = shadow.querySelector('.theme-btn');
-    const modeBtn   = shadow.querySelector('.mode-btn');
-    const lockBtn   = shadow.querySelector('.lock-btn');
-    const pinBtn    = shadow.querySelector('.pin-btn');
-    const resizeH   = shadow.querySelector('.resize-handle');
-    const tagInput  = shadow.querySelector('.tag-input');
+    const wrapper = shadow.querySelector('.wrapper');
+    const header = shadow.querySelector('.header');
+    const textarea = shadow.querySelector('textarea');
+    const delBtn = shadow.querySelector('.del-btn');
+    const themeBtn = shadow.querySelector('.theme-btn');
+    const modeBtn = shadow.querySelector('.mode-btn');
+    const lockBtn = shadow.querySelector('.lock-btn');
+    const pinBtn = shadow.querySelector('.pin-btn');
+    const resizeH = shadow.querySelector('.resize-handle');
+    const tagInput = shadow.querySelector('.tag-input');
 
     // Checklist
     if (isChecklist) buildChecklist(shadow, note, note.locked);
@@ -272,15 +272,15 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       textarea.addEventListener('mousedown', e => e.stopPropagation());
       textarea.addEventListener('pointerdown', e => e.stopPropagation());
       textarea.addEventListener('focus', () => { activeTextarea = textarea; lastNote = note; });
-      textarea.addEventListener('blur',  () => { activeTextarea = null; /* lastNote kept intentionally */ });
+      textarea.addEventListener('blur', () => { activeTextarea = null; /* lastNote kept intentionally */ });
       textarea.addEventListener('paste', async e => {
         e.preventDefault(); e.stopPropagation();
         let t = '';
-        try { t = await navigator.clipboard.readText(); } catch { t = e.clipboardData?.getData('text/plain')||''; }
+        try { t = await navigator.clipboard.readText(); } catch { t = e.clipboardData?.getData('text/plain') || ''; }
         if (!t) return;
         const s = textarea.selectionStart, en = textarea.selectionEnd;
-        textarea.value = textarea.value.slice(0,s) + t + textarea.value.slice(en);
-        textarea.setSelectionRange(s+t.length, s+t.length);
+        textarea.value = textarea.value.slice(0, s) + t + textarea.value.slice(en);
+        textarea.setSelectionRange(s + t.length, s + t.length);
         note.text = textarea.value; note.updatedAt = new Date().toISOString(); saveNotes();
       });
     }
@@ -309,30 +309,34 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     // Theme toggle
-    themeBtn.addEventListener('click', e => { e.stopPropagation();
+    themeBtn.addEventListener('click', e => {
+      e.stopPropagation();
       note.theme = note.theme === 'dark' ? 'light' : 'dark';
       saveNotes(); rebuildNote(note, host);
     });
 
     // Checklist mode toggle
-    modeBtn.addEventListener('click', e => { e.stopPropagation();
+    modeBtn.addEventListener('click', e => {
+      e.stopPropagation();
       note.mode = note.mode === 'checklist' ? 'text' : 'checklist';
       if (note.mode === 'checklist' && !note.items.length && note.text) {
-        note.items = note.text.split('\n').filter(l=>l.trim()).map((l,i)=>({id:Date.now()+'_'+i,text:l.trim(),checked:false}));
+        note.items = note.text.split('\n').filter(l => l.trim()).map((l, i) => ({ id: Date.now() + '_' + i, text: l.trim(), checked: false }));
         note.text = '';
       }
       saveNotes(); rebuildNote(note, host);
     });
 
     // Lock toggle
-    lockBtn.addEventListener('click', e => { e.stopPropagation();
+    lockBtn.addEventListener('click', e => {
+      e.stopPropagation();
       note.locked = !note.locked; saveNotes(); rebuildNote(note, host);
     });
 
     // Pin toggle (cycle through corners)
-    pinBtn.addEventListener('click', e => { e.stopPropagation();
+    pinBtn.addEventListener('click', e => {
+      e.stopPropagation();
       const i = PINS.indexOf(note.pinned);
-      note.pinned = PINS[(i+1) % PINS.length];
+      note.pinned = PINS[(i + 1) % PINS.length];
       applyPin(host, note); saveNotes(); rebuildNote(note, host);
     });
 
@@ -362,17 +366,17 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (e.target.closest('.ab, .del-btn')) return;
       if (note.pinned) return;
       e.preventDefault(); e.stopPropagation();
-      sx=e.clientX; sy=e.clientY; sl=note.x; st=note.y;
-      const maxZ = Math.max(...notes.map(n=>n.zIndex||0), 2147483600);
-      note.zIndex = maxZ+1; el.style.zIndex = note.zIndex;
+      sx = e.clientX; sy = e.clientY; sl = note.x; st = note.y;
+      const maxZ = Math.max(...notes.map(n => n.zIndex || 0), 2147483600);
+      note.zIndex = maxZ + 1; el.style.zIndex = note.zIndex;
       el.classList.add('quiq-dragging');
       handle.setPointerCapture(e.pointerId);
     });
     handle.addEventListener('pointermove', e => {
       if (!el.classList.contains('quiq-dragging')) return;
-      note.x = Math.max(0, Math.min(window.innerWidth-50,  sl+e.clientX-sx));
-      note.y = Math.max(0, Math.min(window.innerHeight-50, st+e.clientY-sy));
-      el.style.left = note.x+'px'; el.style.top = note.y+'px';
+      note.x = Math.max(0, Math.min(window.innerWidth - 50, sl + e.clientX - sx));
+      note.y = Math.max(0, Math.min(window.innerHeight - 50, st + e.clientY - sy));
+      el.style.left = note.x + 'px'; el.style.top = note.y + 'px';
     });
     handle.addEventListener('pointerup', () => { el.classList.remove('quiq-dragging'); saveNotes(); });
   }
@@ -382,28 +386,28 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handle.addEventListener('pointerdown', e => {
       if (note.locked) return;
       e.preventDefault(); e.stopPropagation();
-      sx=e.clientX; sy=e.clientY; sw=note.width||200; sh=note.height||180;
+      sx = e.clientX; sy = e.clientY; sw = note.width || 200; sh = note.height || 180;
       handle.setPointerCapture(e.pointerId);
     });
     handle.addEventListener('pointermove', e => {
       if (!handle.hasPointerCapture(e.pointerId)) return;
-      note.width  = Math.max(160, sw+e.clientX-sx);
-      note.height = Math.max(120, sh+e.clientY-sy);
-      el.style.width = note.width+'px'; el.style.height = note.height+'px';
+      note.width = Math.max(160, sw + e.clientX - sx);
+      note.height = Math.max(120, sh + e.clientY - sy);
+      el.style.width = note.width + 'px'; el.style.height = note.height + 'px';
     });
     handle.addEventListener('pointerup', () => saveNotes());
   }
 
   function removeNote(id) {
     const el = noteEls.get(id);
-    if (el) { el.style.transform='scale(.5) rotate(8deg)'; el.style.opacity='0'; el.style.transition='transform .2s,opacity .2s'; setTimeout(()=>el.remove(),200); noteEls.delete(id); }
-    notes = notes.filter(n=>n.id!==id); saveNotes();
+    if (el) { el.style.transform = 'scale(.5) rotate(8deg)'; el.style.opacity = '0'; el.style.transition = 'transform .2s,opacity .2s'; setTimeout(() => el.remove(), 200); noteEls.delete(id); }
+    notes = notes.filter(n => n.id !== id); saveNotes();
   }
 
   let saveTimer;
   function saveNotes() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => browserAPI.storage.local.set({[KEY]:notes}), 300);
+    saveTimer = setTimeout(() => browserAPI.storage.local.set({ [KEY]: notes }), 300);
   }
 
   // ── Auto-paste: any copy on the page → flows into the last active note ───
@@ -427,7 +431,7 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!copied && document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
       try {
         copied = document.activeElement.value.substring(document.activeElement.selectionStart, document.activeElement.selectionEnd);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (!copied || !copied.trim()) return;
@@ -528,7 +532,7 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       e.stopPropagation();
       let pasted = e.clipboardData?.getData('text/plain') || '';
       if (!pasted) {
-        try { pasted = await navigator.clipboard.readText(); } catch (err) {}
+        try { pasted = await navigator.clipboard.readText(); } catch (err) { }
       }
       if (pasted) {
         const start = textarea.selectionStart, end = textarea.selectionEnd;
@@ -549,7 +553,7 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (storedNote) {
           textarea.value = storedNote.text || '';
           note.text = storedNote.text;
-          
+
           // Flash effect to show it worked
           host.classList.add('paste-flash');
           setTimeout(() => host.classList.remove('paste-flash'), 650);
@@ -602,17 +606,17 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg.type==='ADD_NOTE') { notes.push(msg.note); renderNote(msg.note); sendResponse({success:true}); return true;}
-    else if (msg.type==='DELETE_NOTE') { removeNote(msg.id); sendResponse({success:true}); return true;}
-    else if (msg.type==='CLEAR_NOTES') { notes.forEach(n=>{ const el=noteEls.get(n.id); if(el) el.remove(); }); noteEls.clear(); notes=[]; browserAPI.storage.local.set({[KEY]:[]}); sendResponse({success:true}); return true;}
-    else if (msg.type==='TOGGLE_NOTES') { hidden=msg.hidden; document.body.classList.toggle('quiq-notes-hidden',hidden); sendResponse({success:true}); return true;}
-    else if (msg.type==='RELOAD_NOTES') {
-      browserAPI.storage.local.get([KEY,HIDDEN_KEY], r => {
-        const fresh = r[KEY]||[];
+    if (msg.type === 'ADD_NOTE') { notes.push(msg.note); renderNote(msg.note); sendResponse({ success: true }); return true; }
+    else if (msg.type === 'DELETE_NOTE') { removeNote(msg.id); sendResponse({ success: true }); return true; }
+    else if (msg.type === 'CLEAR_NOTES') { notes.forEach(n => { const el = noteEls.get(n.id); if (el) el.remove(); }); noteEls.clear(); notes = []; browserAPI.storage.local.set({ [KEY]: [] }); sendResponse({ success: true }); return true; }
+    else if (msg.type === 'TOGGLE_NOTES') { hidden = msg.hidden; document.body.classList.toggle('quiq-notes-hidden', hidden); sendResponse({ success: true }); return true; }
+    else if (msg.type === 'RELOAD_NOTES') {
+      browserAPI.storage.local.get([KEY, HIDDEN_KEY], r => {
+        const fresh = r[KEY] || [];
         fresh.forEach(n => { if (!noteEls.has(n.id)) { notes.push(n); renderNote(n); } });
-        hidden = r[HIDDEN_KEY]||false;
+        hidden = r[HIDDEN_KEY] || false;
         document.body.classList.toggle('quiq-notes-hidden', hidden);
-        sendResponse({success:true});
+        sendResponse({ success: true });
       });
       return true;
     }
@@ -637,7 +641,7 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (!copied && document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
         try {
           copied = document.activeElement.value.substring(document.activeElement.selectionStart, document.activeElement.selectionEnd);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (!copied || !copied.trim()) return;
@@ -645,7 +649,7 @@ browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       // Append to global note
       setTimeout(() => {
         const prefix = textarea.value && !textarea.value.endsWith('\n') ? '\n' : '';
-        const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const pageInfo = `[${timestamp} ${window.location.hostname}] `;
 
         textarea.value = textarea.value + prefix + pageInfo + copied;
