@@ -1,5 +1,97 @@
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
+// CSS must be global for renderGlobalNote to access it
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :host{position:fixed!important;z-index:2147483600!important;display:block!important;min-width:160px;min-height:120px;border-radius:4px 14px 14px 14px;box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.5);overflow:hidden;font-family:'Caveat',cursive;cursor:default;user-select:none;animation:pop-in .25s cubic-bezier(.34,1.56,.64,1) both;}
+  @keyframes pop-in{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+  :host(.dragging){box-shadow:0 18px 48px rgba(0,0,0,.3);transform:rotate(2deg) scale(1.03);}
+  :host(.paste-flash){animation:paste-flash .6s ease both!important;}
+  @keyframes paste-flash{0%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 3px rgba(40,200,100,.7);}60%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 6px rgba(40,200,100,.3);}100%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 0 rgba(40,200,100,0);}}
+  .wrapper{width:100%;height:100%;display:flex;flex-direction:column;position:relative;}
+  .wrapper::before{content:'';position:absolute;top:-5px;left:18px;width:12px;height:12px;background:radial-gradient(circle at 40% 35%,#ff6b6b,#c0392b);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:2;pointer-events:none;}
+  .header{padding:5px 6px 4px;display:flex;align-items:center;justify-content:space-between;cursor:grab;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.06);}
+  .header:active{cursor:grabbing;}
+  .dots{display:flex;gap:4px;align-items:center;}
+  .dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.2);}
+  .actions{display:flex;align-items:center;gap:2px;}
+  .ab{width:20px;height:20px;border-radius:5px;background:rgba(0,0,0,.08);border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.5);transition:background .15s,transform .1s;padding:0;}
+  .ab:hover{background:rgba(0,0,0,.18);transform:scale(1.1);}
+  .ab.on{background:rgba(0,0,0,.22);color:rgba(0,0,0,.9);}
+  .del-btn:hover{background:rgba(200,40,40,.25)!important;color:#c02020!important;}
+  .body{flex:1;padding:8px 10px 4px;display:flex;flex-direction:column;background:transparent;overflow:hidden;min-height:0;}
+  textarea{flex:1;width:100%;min-height:50px;background:transparent;border:none;outline:none;resize:none;font-family:'Caveat',cursive;font-size:17px;color:#1a1208;-webkit-text-fill-color:#1a1208;line-height:1.5;cursor:text;padding:0;}
+  textarea::placeholder{color:rgba(0,0,0,.28);-webkit-text-fill-color:rgba(0,0,0,.28);font-style:italic;}
+  textarea:disabled{cursor:default;opacity:.85;}
+  .checklist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:50px;}
+  .checklist::-webkit-scrollbar{width:3px;}
+  .checklist::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:2px;}
+  .ci{display:flex;align-items:center;gap:5px;padding:1px 0;}
+  .ci input[type=checkbox]{width:14px;height:14px;cursor:pointer;flex-shrink:0;margin:0;accent-color:rgba(0,0,0,.6);}
+  .ci .it{flex:1;font-family:'Caveat',cursive;font-size:16px;color:#1a1208;background:transparent;border:none;outline:none;padding:0;min-width:0;}
+  .ci.done .it{text-decoration:line-through;opacity:.45;}
+  .ci .ri{width:14px;height:14px;background:transparent;border:none;cursor:pointer;font-size:10px;color:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;flex-shrink:0;padding:0;}
+  .ci:hover .ri{opacity:1;}
+  .ni-row{display:flex;align-items:center;gap:5px;margin-top:2px;}
+  .ni-plus{font-size:13px;color:rgba(0,0,0,.25);width:14px;text-align:center;flex-shrink:0;}
+  .ni{flex:1;font-family:'Caveat',cursive;font-size:16px;color:#1a1208;background:transparent;border:none;outline:none;padding:0;}
+  .ni::placeholder{color:rgba(0,0,0,.25);font-style:italic;}
+  .tags-row{display:flex;flex-wrap:wrap;gap:3px;align-items:center;padding-top:4px;min-height:20px;}
+  .tag-chip{font-size:11px;background:rgba(0,0,0,.1);color:rgba(0,0,0,.6);border-radius:10px;padding:1px 7px;font-family:'Caveat',cursive;cursor:default;}
+  .tag-input{font-family:'Caveat',cursive;font-size:13px;color:#1a1208;background:transparent;border:none;outline:none;width:60px;min-width:40px;}
+  .tag-input::placeholder{color:rgba(0,0,0,.25);font-style:italic;}
+  .resize-handle{position:absolute;bottom:0;right:0;width:18px;height:18px;cursor:nwse-resize;opacity:.25;transition:opacity .2s;}
+  .resize-handle::before{content:'';position:absolute;bottom:3px;right:3px;width:8px;height:8px;border-right:2px solid rgba(0,0,0,.5);border-bottom:2px solid rgba(0,0,0,.5);}
+  :host(:hover) .resize-handle{opacity:.55;}
+`;
+
+// CSS for global note shadow DOM
+const SHADOW_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :host{position:fixed!important;z-index:2147483700!important;display:block!important;}
+  .wrapper{width:100%;height:100%;display:flex;flex-direction:column;position:relative;border-radius:4px 14px 14px 14px;box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.5);overflow:hidden;font-family:'Caveat',cursive;cursor:default;user-select:none;animation:pop-in .25s cubic-bezier(.34,1.56,.64,1) both;}
+  @keyframes pop-in{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+  .header{padding:5px 8px 4px;display:flex;align-items:center;justify-content:space-between;cursor:grab;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.06);}
+  .header:active{cursor:grabbing;}
+  .dots{display:flex;gap:4px;align-items:center;}
+  .dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.2);}
+  .actions{display:flex;align-items:center;gap:4px;}
+  .ab{width:22px;height:22px;border-radius:5px;background:rgba(0,0,0,.08);border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.5);transition:background .15s,transform .1s;padding:0;}
+  .ab:hover{background:rgba(0,0,0,.18);transform:scale(1.1);}
+  .del-btn:hover{background:rgba(200,40,40,.25)!important;color:#c02020!important;}
+  .body{flex:1;padding:8px 10px 4px;display:flex;flex-direction:column;background:transparent;overflow:hidden;min-height:0;position:relative;}
+  textarea{flex:1;width:100%;min-height:50px;background:transparent;border:none;outline:none;resize:none;font-family:'Caveat',cursive;font-size:17px;color:#1a1208;-webkit-text-fill-color:#1a1208;line-height:1.5;cursor:text;padding:0;}
+  textarea::placeholder{color:rgba(0,0,0,.28);-webkit-text-fill-color:rgba(0,0,0,.28);font-style:italic;}
+  .resize-handle{position:absolute;bottom:0;right:0;width:18px;height:18px;cursor:nwse-resize;opacity:.25;transition:opacity .2s;}
+  .resize-handle::before{content:'';position:absolute;bottom:3px;right:3px;width:8px;height:8px;border-right:2px solid rgba(0,0,0,.5);border-bottom:2px solid rgba(0,0,0,.5);}
+  :host(:hover) .resize-handle{opacity:.55;}
+`;
+
+// Message listener for SHOW_GLOBAL_NOTE - must be registered before guard
+// so it responds even when script is re-injected
+browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'PING') {
+    sendResponse({ pong: true });
+    return true;
+  }
+  if (msg.type === 'SHOW_GLOBAL_NOTE') {
+    // Global note functions will be available after init
+    if (window.__quiqGlobalNote && window.__quiqGlobalNote.render) {
+      window.__quiqGlobalNote.render(msg.note);
+      sendResponse({ success: true });
+    } else {
+      // Store for later when init completes
+      window.__pendingGlobalNote = msg.note;
+      sendResponse({ success: false, error: 'Not initialized yet' });
+    }
+    return true;
+  }
+});
+
 (() => {
-  const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+  // Guard to prevent double initialization of notes data
   if (window.__quiqNotesLoaded) return;
   window.__quiqNotesLoaded = true;
 
@@ -33,74 +125,6 @@
     notes.forEach(n => renderNote(n));
     if (hidden) document.body.classList.add('quiq-notes-hidden');
   });
-
-  const CSS = `
-    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap');
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    :host{position:fixed!important;z-index:2147483600!important;display:block!important;min-width:160px;min-height:120px;border-radius:4px 14px 14px 14px;box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.5);overflow:hidden;font-family:'Caveat',cursive;cursor:default;user-select:none;animation:pop-in .25s cubic-bezier(.34,1.56,.64,1) both;}
-    @keyframes pop-in{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
-    :host(.dragging){box-shadow:0 18px 48px rgba(0,0,0,.3);transform:rotate(2deg) scale(1.03);}
-    :host(.paste-flash){animation:paste-flash .6s ease both!important;}
-    @keyframes paste-flash{0%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 3px rgba(40,200,100,.7);}60%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 6px rgba(40,200,100,.3);}100%{box-shadow:0 4px 6px rgba(0,0,0,.18),0 12px 32px rgba(0,0,0,.14),0 0 0 0 rgba(40,200,100,0);}}
-    .wrapper{width:100%;height:100%;display:flex;flex-direction:column;position:relative;}
-    .wrapper::before{content:'';position:absolute;top:-5px;left:18px;width:12px;height:12px;background:radial-gradient(circle at 40% 35%,#ff6b6b,#c0392b);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:2;pointer-events:none;}
-    .header{padding:5px 6px 4px;display:flex;align-items:center;justify-content:space-between;cursor:grab;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.06);}
-    .header:active{cursor:grabbing;}
-    .dots{display:flex;gap:4px;align-items:center;}
-    .dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.2);}
-    .actions{display:flex;align-items:center;gap:2px;}
-    .ab{width:20px;height:20px;border-radius:5px;background:rgba(0,0,0,.08);border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.5);transition:background .15s,transform .1s;padding:0;}
-    .ab:hover{background:rgba(0,0,0,.18);transform:scale(1.1);}
-    .ab.on{background:rgba(0,0,0,.22);color:rgba(0,0,0,.9);}
-    .del-btn:hover{background:rgba(200,40,40,.25)!important;color:#c02020!important;}
-    .body{flex:1;padding:8px 10px 4px;display:flex;flex-direction:column;background:transparent;overflow:hidden;min-height:0;}
-    textarea{flex:1;width:100%;min-height:50px;background:transparent;border:none;outline:none;resize:none;font-family:'Caveat',cursive;font-size:17px;color:#1a1208;-webkit-text-fill-color:#1a1208;line-height:1.5;cursor:text;padding:0;}
-    textarea::placeholder{color:rgba(0,0,0,.28);-webkit-text-fill-color:rgba(0,0,0,.28);font-style:italic;}
-    textarea:disabled{cursor:default;opacity:.85;}
-    .checklist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:50px;}
-    .checklist::-webkit-scrollbar{width:3px;}
-    .checklist::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:2px;}
-    .ci{display:flex;align-items:center;gap:5px;padding:1px 0;}
-    .ci input[type=checkbox]{width:14px;height:14px;cursor:pointer;flex-shrink:0;margin:0;accent-color:rgba(0,0,0,.6);}
-    .ci .it{flex:1;font-family:'Caveat',cursive;font-size:16px;color:#1a1208;background:transparent;border:none;outline:none;padding:0;min-width:0;}
-    .ci.done .it{text-decoration:line-through;opacity:.45;}
-    .ci .ri{width:14px;height:14px;background:transparent;border:none;cursor:pointer;font-size:10px;color:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;flex-shrink:0;padding:0;}
-    .ci:hover .ri{opacity:1;}
-    .ni-row{display:flex;align-items:center;gap:5px;margin-top:2px;}
-    .ni-plus{font-size:13px;color:rgba(0,0,0,.25);width:14px;text-align:center;flex-shrink:0;}
-    .ni{flex:1;font-family:'Caveat',cursive;font-size:16px;color:#1a1208;background:transparent;border:none;outline:none;padding:0;}
-    .ni::placeholder{color:rgba(0,0,0,.25);font-style:italic;}
-    .tags-row{display:flex;flex-wrap:wrap;gap:3px;align-items:center;padding-top:4px;min-height:20px;}
-    .tag-chip{font-size:11px;background:rgba(0,0,0,.1);color:rgba(0,0,0,.6);border-radius:10px;padding:1px 7px;font-family:'Caveat',cursive;cursor:default;}
-    .tag-input{font-family:'Caveat',cursive;font-size:13px;color:#1a1208;background:transparent;border:none;outline:none;width:60px;min-width:40px;}
-    .tag-input::placeholder{color:rgba(0,0,0,.25);font-style:italic;}
-    .note-foot{display:flex;align-items:center;justify-content:space-between;padding:2px 10px 4px;flex-shrink:0;}
-    .timestamp{font-size:10px;color:rgba(0,0,0,.3);font-family:system-ui,sans-serif;}
-    .locked-badge{font-size:10px;color:rgba(0,0,0,.35);}
-    .pin-badge{font-size:10px;color:rgba(0,0,0,.35);}
-    .resize-handle{width:18px;height:18px;cursor:nwse-resize;opacity:.25;transition:opacity .2s;flex-shrink:0;position:relative;}
-    .resize-handle::before{content:'';position:absolute;bottom:3px;right:3px;width:8px;height:8px;border-right:2px solid rgba(0,0,0,.5);border-bottom:2px solid rgba(0,0,0,.5);}
-    :host(:hover) .resize-handle{opacity:.55;}
-    /* DARK THEME */
-    .wrapper.dark{border-left:2px solid var(--accent);}
-    .wrapper.dark .header{background:rgba(0,0,0,.35);border-bottom-color:rgba(255,255,255,.06);}
-    .wrapper.dark .dot{background:rgba(255,255,255,.2);}
-    .wrapper.dark .ab{background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);}
-    .wrapper.dark .ab:hover{background:rgba(255,255,255,.18);color:rgba(255,255,255,.9);}
-    .wrapper.dark .ab.on{background:rgba(255,255,255,.22);color:#fff;}
-    .wrapper.dark .del-btn:hover{background:rgba(200,40,40,.35)!important;color:#e05050!important;}
-    .wrapper.dark textarea,.wrapper.dark .ci .it,.wrapper.dark .ni{color:#f0ead6;-webkit-text-fill-color:#f0ead6;}
-    .wrapper.dark textarea::placeholder,.wrapper.dark .ni::placeholder{color:rgba(255,255,255,.3);-webkit-text-fill-color:rgba(255,255,255,.3);}
-    .wrapper.dark .tag-chip{background:rgba(255,255,255,.12);color:rgba(255,255,255,.6);}
-    .wrapper.dark .tag-input{color:#f0ead6;}
-    .wrapper.dark .tag-input::placeholder{color:rgba(255,255,255,.25);}
-    .wrapper.dark .timestamp,.wrapper.dark .locked-badge,.wrapper.dark .pin-badge{color:rgba(255,255,255,.3);}
-    .wrapper.dark .resize-handle::before{border-color:rgba(255,255,255,.4);}
-    .wrapper.dark .checklist::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);}
-    .wrapper.dark .ci input[type=checkbox]{accent-color:rgba(255,255,255,.7);}
-    .wrapper.dark .ci .ri{color:rgba(255,255,255,.35);}
-    .wrapper.dark .ni-plus{color:rgba(255,255,255,.25);}
-  `;
 
   const PINS = [null, 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
   const PIN_ICONS = {'top-left':'↖','top-right':'↗','bottom-left':'↙','bottom-right':'↘'};
@@ -335,7 +359,7 @@
   function makeDraggable(el, handle, note) {
     let sx, sy, sl, st;
     handle.addEventListener('pointerdown', e => {
-      if (e.target.closest('.ab')) return;
+      if (e.target.closest('.ab, .del-btn')) return;
       if (note.pinned) return;
       e.preventDefault(); e.stopPropagation();
       sx=e.clientX; sy=e.clientY; sl=note.x; st=note.y;
@@ -438,18 +462,203 @@
     }, 50);
   });
 
-  browserAPI.runtime.onMessage.addListener((msg) => {
-    if (msg.type==='ADD_NOTE') { notes.push(msg.note); renderNote(msg.note); }
-    else if (msg.type==='DELETE_NOTE') { removeNote(msg.id); }
-    else if (msg.type==='CLEAR_NOTES') { notes.forEach(n=>{ const el=noteEls.get(n.id); if(el) el.remove(); }); noteEls.clear(); notes=[]; browserAPI.storage.local.set({[KEY]:[]}); }
-    else if (msg.type==='TOGGLE_NOTES') { hidden=msg.hidden; document.body.classList.toggle('quiq-notes-hidden',hidden); }
+  // Global Note key
+  const GLOBAL_KEY = 'quiq_global_note';
+  let globalNoteEl = null;
+
+  // Render global note
+  function renderGlobalNote(note) {
+    if (globalNoteEl) {
+      globalNoteEl.remove();
+      globalNoteEl = null;
+    }
+
+    const host = document.createElement('div');
+    host.id = 'quiq-global-' + note.id;
+    host.style.cssText = `
+      position: fixed !important;
+      left: ${note.x}px;
+      top: ${note.y}px;
+      width: ${note.width || 350}px;
+      height: ${note.height || 250}px;
+      z-index: 2147483700 !important;
+    `;
+
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = `
+      <style>${SHADOW_CSS}</style>
+      <div class="wrapper" style="background: linear-gradient(145deg, ${note.color}, ${darken(note.color, 12)}); border: 2px solid #4a7a55;">
+        <div class="header">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <span style="font-size:11px;color:#2a5a35;font-weight:700;">🌍 GLOBAL</span>
+          <div class="actions">
+            <button class="ab refresh-btn" title="Sync from storage">🔄</button>
+            <button class="ab del-btn" title="Close">✕</button>
+          </div>
+        </div>
+        <div class="body">
+          <textarea placeholder="Global note - collects from all pages..." spellcheck="false">${esc(note.text || '')}</textarea>
+          <div class="resize-handle"></div>
+        </div>
+      </div>
+    `;
+
+    const header = shadow.querySelector('.header');
+    const textarea = shadow.querySelector('textarea');
+    const delBtn = shadow.querySelector('.del-btn');
+    const refreshBtn = shadow.querySelector('.refresh-btn');
+    const resizeH = shadow.querySelector('.resize-handle');
+
+    // Track as active for auto-paste
+    textarea.addEventListener('focus', () => { activeTextarea = textarea; lastNote = note; });
+    textarea.addEventListener('blur', () => { if (activeTextarea === textarea) { activeTextarea = null; } });
+
+    textarea.addEventListener('input', () => {
+      note.text = textarea.value;
+      note.updatedAt = new Date().toISOString();
+      saveGlobalNote();
+    });
+
+    textarea.addEventListener('mousedown', e => e.stopPropagation());
+    textarea.addEventListener('pointerdown', e => e.stopPropagation());
+
+    // Auto-paste on this textarea too
+    textarea.addEventListener('paste', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      let pasted = e.clipboardData?.getData('text/plain') || '';
+      if (!pasted) {
+        try { pasted = await navigator.clipboard.readText(); } catch (err) {}
+      }
+      if (pasted) {
+        const start = textarea.selectionStart, end = textarea.selectionEnd;
+        const before = textarea.value.substring(0, start);
+        const after = textarea.value.substring(end);
+        textarea.value = before + pasted + after;
+        textarea.setSelectionRange(start + pasted.length, start + pasted.length);
+        note.text = textarea.value;
+        note.updatedAt = new Date().toISOString();
+        saveGlobalNote();
+      }
+    });
+
+    refreshBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      browserAPI.storage.local.get(GLOBAL_KEY, r => {
+        const storedNote = r[GLOBAL_KEY];
+        if (storedNote) {
+          textarea.value = storedNote.text || '';
+          note.text = storedNote.text;
+          
+          // Flash effect to show it worked
+          host.classList.add('paste-flash');
+          setTimeout(() => host.classList.remove('paste-flash'), 650);
+        }
+      });
+    });
+
+    delBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      host.style.transform = 'scale(0.5) rotate(8deg)';
+      host.style.opacity = '0';
+      host.style.transition = 'transform 0.2s, opacity 0.2s';
+      setTimeout(() => { host.remove(); globalNoteEl = null; }, 200);
+    });
+
+    makeDraggable(host, header, note);
+    makeResizable(host, resizeH, note);
+
+    // Save position/size changes
+    const origSave = saveNotes;
+    const saveGlobal = () => {
+      browserAPI.storage.local.set({ [GLOBAL_KEY]: note });
+    };
+
+    document.body.appendChild(host);
+    globalNoteEl = host;
+
+    if (!note.text || note.text.includes('Global Note')) {
+      setTimeout(() => textarea.focus(), 50);
+    }
+  }
+
+  // Register for external access
+  window.__quiqGlobalNote = { render: renderGlobalNote };
+
+  // Check if there was a pending global note request before init
+  if (window.__pendingGlobalNote) {
+    renderGlobalNote(window.__pendingGlobalNote);
+    window.__pendingGlobalNote = null;
+  }
+
+  function saveGlobalNote() {
+    browserAPI.storage.local.get(GLOBAL_KEY, r => {
+      const note = r[GLOBAL_KEY];
+      if (note) {
+        note.updatedAt = new Date().toISOString();
+        browserAPI.storage.local.set({ [GLOBAL_KEY]: note });
+      }
+    });
+  }
+
+  browserAPI.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type==='ADD_NOTE') { notes.push(msg.note); renderNote(msg.note); sendResponse({success:true}); return true;}
+    else if (msg.type==='DELETE_NOTE') { removeNote(msg.id); sendResponse({success:true}); return true;}
+    else if (msg.type==='CLEAR_NOTES') { notes.forEach(n=>{ const el=noteEls.get(n.id); if(el) el.remove(); }); noteEls.clear(); notes=[]; browserAPI.storage.local.set({[KEY]:[]}); sendResponse({success:true}); return true;}
+    else if (msg.type==='TOGGLE_NOTES') { hidden=msg.hidden; document.body.classList.toggle('quiq-notes-hidden',hidden); sendResponse({success:true}); return true;}
     else if (msg.type==='RELOAD_NOTES') {
       browserAPI.storage.local.get([KEY,HIDDEN_KEY], r => {
         const fresh = r[KEY]||[];
         fresh.forEach(n => { if (!noteEls.has(n.id)) { notes.push(n); renderNote(n); } });
         hidden = r[HIDDEN_KEY]||false;
         document.body.classList.toggle('quiq-notes-hidden', hidden);
+        sendResponse({success:true});
       });
+      return true;
     }
+    // SHOW_GLOBAL_NOTE is handled by the top-level listener
+  });
+
+  // Auto-paste into global note when copying from page
+  document.addEventListener('copy', (e) => {
+    // Get global note from storage
+    browserAPI.storage.local.get(GLOBAL_KEY, r => {
+      const globalNote = r[GLOBAL_KEY];
+      if (!globalNote || !globalNoteEl) return;
+
+      const shadow = globalNoteEl.shadowRoot;
+      if (!shadow) return;
+
+      const textarea = shadow.querySelector('textarea');
+      if (!textarea) return;
+
+      // Get copied text
+      let copied = window.getSelection()?.toString();
+      if (!copied && document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        try {
+          copied = document.activeElement.value.substring(document.activeElement.selectionStart, document.activeElement.selectionEnd);
+        } catch (e) {}
+      }
+
+      if (!copied || !copied.trim()) return;
+
+      // Append to global note
+      setTimeout(() => {
+        const prefix = textarea.value && !textarea.value.endsWith('\n') ? '\n' : '';
+        const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const pageInfo = `[${timestamp} ${window.location.hostname}] `;
+
+        textarea.value = textarea.value + prefix + pageInfo + copied;
+        textarea.scrollTop = textarea.scrollHeight;
+
+        globalNote.text = textarea.value;
+        globalNote.updatedAt = new Date().toISOString();
+        browserAPI.storage.local.set({ [GLOBAL_KEY]: globalNote });
+
+        // Flash effect
+        globalNoteEl.classList.add('paste-flash');
+        setTimeout(() => globalNoteEl.classList.remove('paste-flash'), 650);
+      }, 50);
+    });
   });
 })();

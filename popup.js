@@ -325,4 +325,122 @@ document.getElementById('importFile').addEventListener('change', async e => {
   e.target.value = '';
 });
 
+// Global Note - create or open global note that collects from all tabs
+const GLOBAL_NOTE_KEY = 'quiq_global_note';
+
+document.getElementById('globalNoteBtn').addEventListener('click', async () => {
+  try {
+    const tab = await getCurrentTab();
+    if (!tab.id) {
+      showError('No active tab found');
+      return;
+    }
+
+    // Skip Chrome system pages
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+      showError("Can't use on system pages.\nNavigate to a website first!");
+      return;
+    }
+
+    // Check if global note exists
+    const result = await browserAPI.storage.local.get(GLOBAL_NOTE_KEY);
+    let globalNote = result[GLOBAL_NOTE_KEY];
+
+    if (!globalNote) {
+      // Create new global note
+      const now = new Date().toISOString();
+      globalNote = {
+        id: 'global_' + Date.now(),
+        color: '#86efac',
+        text: '🌍 Global Note\n\nThis note automatically collects copied text from all pages.\n\n',
+        x: 100,
+        y: 100,
+        width: 350,
+        height: 250,
+        zIndex: Date.now(),
+        createdAt: now,
+        updatedAt: now,
+        isGlobal: true
+      };
+      await browserAPI.storage.local.set({ [GLOBAL_NOTE_KEY]: globalNote });
+    }
+
+    // STEP 1: Check if content script is already loaded
+    let contentScriptLoaded = false;
+    let pingError = '';
+    try {
+      const pong = await browserAPI.tabs.sendMessage(tab.id, { type: 'PING' });
+      contentScriptLoaded = !!pong;
+      console.log('Step 1 - PING response:', pong);
+    } catch (e) {
+      contentScriptLoaded = false;
+      pingError = e.message;
+      console.log('Step 1 - PING failed:', e.message);
+    }
+
+    // STEP 2: Inject content script if not loaded
+    if (!contentScriptLoaded) {
+      console.log('Step 2 - Injecting content script...');
+      try {
+        await browserAPI.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        console.log('Step 2 - Content script injected');
+      } catch (injectErr) {
+        console.error('Step 2 - Inject failed:', injectErr);
+        showError('Step 2 Failed (Inject): ' + injectErr.message);
+        return;
+      }
+      
+      // Wait for script to initialize
+      await new Promise(r => setTimeout(r, 800));
+      
+      // Verify injection worked
+      try {
+        const verify = await browserAPI.tabs.sendMessage(tab.id, { type: 'PING' });
+        if (!verify) {
+          showError('Step 2b Failed: Script injected but not responding.\nTry refreshing the page.');
+          return;
+        }
+        console.log('Step 2b - Verified script loaded:', verify);
+      } catch (e) {
+        showError('Step 2b Failed: Script not responding after inject.\nTry refreshing the page.\nError: ' + e.message);
+        return;
+      }
+    }
+
+    // STEP 3: Send SHOW_GLOBAL_NOTE
+    console.log('Step 3 - Sending SHOW_GLOBAL_NOTE...');
+    try {
+      const result = await browserAPI.tabs.sendMessage(tab.id, { type: 'SHOW_GLOBAL_NOTE', note: globalNote });
+      console.log('Step 3 - Result:', result);
+      
+      if (result && result.error) {
+        showError('Step 3 Failed: ' + result.error);
+        return;
+      }
+      
+      window.close();
+    } catch (e2) {
+      console.error('Step 3 - Final error:', e2);
+      showError('Step 3 Failed (Send): ' + e2.message + '\nPing was: ' + (contentScriptLoaded ? 'OK' : pingError));
+    }
+  } catch (err) {
+    showError('Error: ' + err.message);
+  }
+});
+
+// Check if global note exists and update button text
+async function updateGlobalNoteButton() {
+  const result = await browserAPI.storage.local.get(GLOBAL_NOTE_KEY);
+  const btn = document.getElementById('globalNoteBtn');
+  if (result[GLOBAL_NOTE_KEY]) {
+    btn.innerHTML = '<span>🌍</span> Open Global Note';
+  } else {
+    btn.innerHTML = '<span>🌍</span> Create Global Note';
+  }
+}
+
+updateGlobalNoteButton();
 loadNotes();
